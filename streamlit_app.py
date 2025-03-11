@@ -41,6 +41,20 @@ def filter_predictions(df, threshold):
     
     return df[["image_id", "ground_truth_labels", "filtered_finetuned_labels", "filtered_finetuned_scores", "filtered_pretrained_labels", "filtered_pretrained_scores"]]  # Keep only selected columns
 
+# Function to calculate precision, recall, F1-score, and accuracy
+def compute_metrics(pred_labels, true_labels):
+    tp = sum(1 for label in pred_labels if label in true_labels)
+    fp = sum(1 for label in pred_labels if label not in true_labels)
+    fn = sum(1 for label in true_labels if label not in pred_labels)
+    tn = 0  # Not applicable for multi-label classification
+    
+    precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+    recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+    f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
+    accuracy = tp / (tp + fp + fn) if (tp + fp + fn) > 0 else 0.0
+    
+    return precision, recall, f1, accuracy
+
 # Load the dataset
 @st.cache_data
 def load_data():
@@ -70,3 +84,31 @@ st.subheader("Filter by Confidence Score")
 threshold = st.slider("Select Confidence Score Threshold", 0.0, 1.0, 0.5, 0.05)
 df_filtered = filter_predictions(df, threshold)
 st.dataframe(df_filtered)
+
+# Compute performance metrics
+st.subheader("Performance Metrics Comparison")
+finetuned_metrics = [compute_metrics(pred, true) for pred, true in zip(df_filtered["filtered_finetuned_labels"], df_filtered["ground_truth_labels"])]
+pretrained_metrics = [compute_metrics(pred, true) for pred, true in zip(df_filtered["filtered_pretrained_labels"], df_filtered["ground_truth_labels"])]
+
+finetuned_precision = np.mean([m[0] for m in finetuned_metrics])
+finetuned_recall = np.mean([m[1] for m in finetuned_metrics])
+finetuned_f1 = np.mean([m[2] for m in finetuned_metrics])
+finetuned_accuracy = np.mean([m[3] for m in finetuned_metrics])
+
+pretrained_precision = np.mean([m[0] for m in pretrained_metrics])
+pretrained_recall = np.mean([m[1] for m in pretrained_metrics])
+pretrained_f1 = np.mean([m[2] for m in pretrained_metrics])
+pretrained_accuracy = np.mean([m[3] for m in pretrained_metrics])
+
+st.write("### Fine-tuned Model Metrics")
+
+st.write(f"**Accuracy:** {finetuned_accuracy:.2%}")
+st.write(f"**Precision:** {finetuned_precision:.2%}")
+st.write(f"**Recall:** {finetuned_recall:.2%}")
+st.write(f"**F1-Score:** {finetuned_f1:.2%}")
+
+st.write("### Pre-trained Model Metrics")
+st.write(f"**Accuracy:** {pretrained_accuracy:.2%}")
+st.write(f"**Precision:** {pretrained_precision:.2%}")
+st.write(f"**Recall:** {pretrained_recall:.2%}")
+st.write(f"**F1-Score:** {pretrained_f1:.2%}")
