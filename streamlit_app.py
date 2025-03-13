@@ -20,11 +20,14 @@ def filter_predictions(df, threshold):
     
     for finetuned_labels, finetuned_scores, pretrained_labels, pretrained_scores in zip(
             df["finetuned_labels"], df["finetuned_scores"], df["pretrained_labels"], df["pretrained_scores"]):
-        finetuned_labels_list = ast.literal_eval(finetuned_labels)  # Convert string to list
-        finetuned_scores_list = finetuned_scores  # Already processed as list
-        pretrained_labels_list = ast.literal_eval(pretrained_labels)
-        pretrained_scores_list = pretrained_scores
         
+        # Convert string lists to actual lists
+        finetuned_labels_list = ast.literal_eval(finetuned_labels) if isinstance(finetuned_labels, str) else finetuned_labels
+        pretrained_labels_list = ast.literal_eval(pretrained_labels) if isinstance(pretrained_labels, str) else pretrained_labels
+        
+        finetuned_scores_list = finetuned_scores  # Already processed as list
+        pretrained_scores_list = pretrained_scores
+
         # Filter out labels with scores below the threshold
         filtered_finetuned = [(lbl, scr) for lbl, scr in zip(finetuned_labels_list, finetuned_scores_list) if scr >= threshold]
         filtered_pretrained = [(lbl, scr) for lbl, scr in zip(pretrained_labels_list, pretrained_scores_list) if scr >= threshold]
@@ -39,21 +42,35 @@ def filter_predictions(df, threshold):
     df["filtered_pretrained_labels"] = filtered_pretrained_labels
     df["filtered_pretrained_scores"] = filtered_pretrained_scores
     
-    return df[["image_id", "ground_truth_labels", "filtered_finetuned_labels", "filtered_finetuned_scores", "filtered_pretrained_labels", "filtered_pretrained_scores"]]  # Keep only selected columns
+    return df[["image_id", "ground_truth_labels", "filtered_finetuned_labels", "filtered_finetuned_scores", "filtered_pretrained_labels", "filtered_pretrained_scores"]]
 
-# Function to calculate precision, recall, F1-score, and accuracy
-def compute_metrics(pred_labels, true_labels):
-    tp = sum(1 for label in pred_labels if label in true_labels)
-    fp = sum(1 for label in pred_labels if label not in true_labels)
-    fn = sum(1 for label in true_labels if label not in pred_labels)
-    tn = 0  # Not applicable for multi-label classification
-    
-    precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
-    recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-    f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
-    accuracy = tp / (tp + fp + fn) if (tp + fp + fn) > 0 else 0.0
-    
-    return precision, recall, f1, accuracy
+# Function to compute multi-label precision, recall, and F1-score
+def compute_metrics(pred_labels_list, true_labels_list):
+    precision_scores = []
+    recall_scores = []
+    f1_scores = []
+
+    for pred_labels, true_labels in zip(pred_labels_list, true_labels_list):
+        pred_labels_set = set(pred_labels)  # Convert list to set
+        true_labels_set = set(true_labels)
+
+        tp = len(pred_labels_set & true_labels_set)  # Intersection
+        fp = len(pred_labels_set - true_labels_set)  # Predicted but not in ground truth
+        fn = len(true_labels_set - pred_labels_set)  # Ground truth not predicted
+
+        precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+        recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+        f1 = (2 * precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
+
+        precision_scores.append(precision)
+        recall_scores.append(recall)
+        f1_scores.append(f1)
+
+    avg_precision = np.mean(precision_scores)
+    avg_recall = np.mean(recall_scores)
+    avg_f1 = np.mean(f1_scores)
+
+    return avg_precision, avg_recall, avg_f1
 
 # Load the dataset
 @st.cache_data
@@ -65,11 +82,15 @@ def load_data():
     df["finetuned_scores"] = df["finetuned_scores"].apply(lambda x: process_scores(str(x)))
     df["pretrained_scores"] = df["pretrained_scores"].apply(lambda x: process_scores(str(x)))
     
+    # Ensure ground truth labels are stored as lists
+    df["ground_truth_labels"] = df["ground_truth_labels"].apply(lambda x: ast.literal_eval(str(x)) if isinstance(x, str) else x)
+
     # Save processed dataframe
     df.to_csv("processed_cleaned_dataset.csv", index=False)
     
     return df
 
+# Load dataset
 df = load_data()
 
 # Title
@@ -83,32 +104,52 @@ st.dataframe(df.head())
 st.subheader("Filter by Confidence Score")
 threshold = st.slider("Select Confidence Score Threshold", 0.0, 1.0, 0.5, 0.05)
 df_filtered = filter_predictions(df, threshold)
-st.dataframe(df_filtered)
+st.dataframe(df_filtered, height=200, width=800)
 
 # Compute performance metrics
 st.subheader("Performance Metrics Comparison")
-finetuned_metrics = [compute_metrics(pred, true) for pred, true in zip(df_filtered["filtered_finetuned_labels"], df_filtered["ground_truth_labels"])]
-pretrained_metrics = [compute_metrics(pred, true) for pred, true in zip(df_filtered["filtered_pretrained_labels"], df_filtered["ground_truth_labels"])]
 
-finetuned_precision = np.mean([m[0] for m in finetuned_metrics])
-finetuned_recall = np.mean([m[1] for m in finetuned_metrics])
-finetuned_f1 = np.mean([m[2] for m in finetuned_metrics])
-finetuned_accuracy = np.mean([m[3] for m in finetuned_metrics])
+# Compute metrics for fine-tuned model
+finetuned_precision, finetuned_recall, finetuned_f1 = compute_metrics(
+    df_filtered["filtered_finetuned_labels"], df_filtered["ground_truth_labels"]
+)
 
-pretrained_precision = np.mean([m[0] for m in pretrained_metrics])
-pretrained_recall = np.mean([m[1] for m in pretrained_metrics])
-pretrained_f1 = np.mean([m[2] for m in pretrained_metrics])
-pretrained_accuracy = np.mean([m[3] for m in pretrained_metrics])
+# Compute metrics for pre-trained model
+pretrained_precision, pretrained_recall, pretrained_f1 = compute_metrics(
+    df_filtered["filtered_pretrained_labels"], df_filtered["ground_truth_labels"]
+)
 
 st.write("### Fine-tuned Model Metrics")
-
-st.write(f"**Accuracy:** {finetuned_accuracy:.2%}")
 st.write(f"**Precision:** {finetuned_precision:.2%}")
 st.write(f"**Recall:** {finetuned_recall:.2%}")
 st.write(f"**F1-Score:** {finetuned_f1:.2%}")
 
 st.write("### Pre-trained Model Metrics")
-st.write(f"**Accuracy:** {pretrained_accuracy:.2%}")
 st.write(f"**Precision:** {pretrained_precision:.2%}")
 st.write(f"**Recall:** {pretrained_recall:.2%}")
 st.write(f"**F1-Score:** {pretrained_f1:.2%}")
+
+
+st.subheader("Evaluation Metrics")
+
+st.markdown("""
+#### How the performance been calculated
+For each sample (row), we compute:
+- **True Positives (TP):** Labels correctly predicted that exist in ground truth.
+- **False Positives (FP):** Labels predicted but not in ground truth.
+- **False Negatives (FN):** Ground truth labels that were not predicted.
+
+The formulas used are:
+""")
+
+st.latex(r"""
+Precision = \frac{TP}{TP + FP}
+""")
+
+st.latex(r"""
+Recall = \frac{TP}{TP + FN}
+""")
+
+st.latex(r"""
+F1\text{-}Score = \frac{2 \times Precision \times Recall}{Precision + Recall}
+""")
