@@ -58,17 +58,17 @@ def compute_metrics(pred_labels_list, true_labels_list):
         fp = len(pred_labels_set - true_labels_set)  # Predicted but not in ground truth
         fn = len(true_labels_set - pred_labels_set)  # Ground truth not predicted
 
-        precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
-        recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-        f1 = (2 * precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
+        precision = tp / (tp + fp) if (tp + fp) > 0 else np.nan # remove this if else
+        recall = tp / (tp + fn) if (tp + fn) > 0 else np.nan # remove this if else
+        f1 = (2 * precision * recall) / (precision + recall) if (precision + recall) > 0 else np.nan
 
         precision_scores.append(precision)
         recall_scores.append(recall)
         f1_scores.append(f1)
 
-    avg_precision = np.mean(precision_scores)
-    avg_recall = np.mean(recall_scores)
-    avg_f1 = np.mean(f1_scores)
+    avg_precision = np.nanmean(precision_scores)
+    avg_recall = np.nanmean(recall_scores)
+    avg_f1 = np.nanmean(f1_scores)
 
     return avg_precision, avg_recall, avg_f1
 
