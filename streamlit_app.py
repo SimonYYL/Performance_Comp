@@ -65,7 +65,7 @@ def compute_metrics(pred_labels_list, true_labels_list, use_global=False, label_
 
         precision = total_tp / (total_tp + total_fp) if (total_tp + total_fp) > 0 else 0
         recall = total_tp / (total_tp + total_fn) if (total_tp + total_fn) > 0 else 0
-        f1 = (2 * precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
+        f1 = (2 * precision * recall) / (precision + recall) if (precision > 0 or recall > 0) else 0
 
         return precision, recall, f1
     else:
