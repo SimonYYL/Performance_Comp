@@ -138,12 +138,26 @@ st.dataframe(df_filtered, height=200, width=800)
 
 # --- Metrics Comparison ---
 st.subheader("Performance Metrics Comparison")
+
+# Color choices based on selection
+mode_color = "#004AAD" if use_global_metrics else "#A6C8FF"  # deep blue vs light blue
+label_color_map = {
+    "All": "#A6C8FF",                  # neutral gray
+    "Person": "#E74C3C",               # red for person
+    "Object (Not person)": "#27AE60"   # green for object
+}
+label_color = label_color_map.get(label_filter, "#666666")
+
+# Styled markdown block
 st.markdown(f"""
-<span style='font-weight:bold;'>Metric Calculation Mode:</span>
-<span style='color:#4B8BBE; font-weight:bold;'>{'Global (Cumulative)' if use_global_metrics else 'Per-row Averaged'}</span><br>
-<span style='font-weight:bold;'>Label Category:</span>
-<span style='color:#FF914D; font-weight:bold;'>{label_filter}</span>
+<div style='line-height: 1.6'>
+    <span style='font-weight:bold;'>Metric Calculation Mode:</span>
+    <span style='color:{mode_color}; font-weight:bold;'>{'Global (Cumulative)' if use_global_metrics else 'Per-row Averaged'}</span><br>
+    <span style='font-weight:bold;'>Label Category:</span>
+    <span style='color:{label_color}; font-weight:bold;'>{label_filter}</span>
+</div>
 """, unsafe_allow_html=True)
+
 
 finetuned_precision, finetuned_recall, finetuned_f1 = compute_metrics(
     df_filtered["filtered_finetuned_labels"],
@@ -159,15 +173,20 @@ pretrained_precision, pretrained_recall, pretrained_f1 = compute_metrics(
     label_filter
 )
 
-st.write("### Fine-tuned Model Metrics")
-st.write(f"**Precision:** {finetuned_precision:.2%}")
-st.write(f"**Recall:** {finetuned_recall:.2%}")
-st.write(f"**F1-Score:** {finetuned_f1:.2%}")
+col1, col2 = st.columns(2)
 
-st.write("### Pre-trained Model Metrics")
-st.write(f"**Precision:** {pretrained_precision:.2%}")
-st.write(f"**Recall:** {pretrained_recall:.2%}")
-st.write(f"**F1-Score:** {pretrained_f1:.2%}")
+with col1:
+    st.markdown("### Fine-tuned Model Metrics")
+    st.markdown(f"**Precision:** {finetuned_precision:.2%}")
+    st.markdown(f"**Recall:** {finetuned_recall:.2%}")
+    st.markdown(f"**F1-Score:** {finetuned_f1:.2%}")
+
+with col2:
+    st.markdown("### Pre-trained Model Metrics")
+    st.markdown(f"**Precision:** {pretrained_precision:.2%}")
+    st.markdown(f"**Recall:** {pretrained_recall:.2%}")
+    st.markdown(f"**F1-Score:** {pretrained_f1:.2%}")
+
 
 # --- Metric Explanation ---
 st.subheader("Evaluation Metrics")
