@@ -83,7 +83,7 @@ def compute_metrics(pred_labels_list, true_labels_list, use_global=False, label_
 
             precision = tp / (tp + fp) if (tp + fp) > 0 else np.nan
             recall = tp / (tp + fn) if (tp + fn) > 0 else np.nan
-            f1 = (2 * precision * recall) / (precision + recall) if (precision + recall) > 0 else np.nan
+            f1 = (2 * precision * recall) / (precision + recall) if (precision > 0 or recall > 0) else np.nan
 
             precision_scores.append(precision)
             recall_scores.append(recall)
