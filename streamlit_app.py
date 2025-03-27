@@ -136,7 +136,13 @@ st.dataframe(df_filtered, height=200, width=800)
 st.subheader("Performance Metrics Comparison")
 
 # Label the current metric mode
-st.markdown(f"**Metric Calculation Mode:** {'Global (Cumulative)' if use_global_metrics else 'Per-row Averaged'}")
+mode_label = "Global (Cumulative)" if use_global_metrics else "Per-row Averaged"
+mode_color = "#ff4b4b" if use_global_metrics else "#4BB543"
+
+st.markdown(f"""
+<span style="font-weight:bold;">Metric Calculation Mode:</span>
+<span style="color:{mode_color}; font-weight:bold;">{mode_label}</span>
+""", unsafe_allow_html=True)
 
 # Fine-tuned model metrics
 finetuned_precision, finetuned_recall, finetuned_f1 = compute_metrics(
