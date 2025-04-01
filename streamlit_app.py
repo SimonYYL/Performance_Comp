@@ -83,15 +83,29 @@ def compute_metrics(pred_labels_list, true_labels_list, use_global=False, label_
 
             precision = tp / (tp + fp) if (tp + fp) > 0 else np.nan
             recall = tp / (tp + fn) if (tp + fn) > 0 else np.nan
-            f1 = (2 * precision * recall) / (precision + recall) if (precision > 0 or recall > 0) else np.nan
+            if not np.isnan(precision) and not np.isnan(recall) and (precision + recall) > 0:
+                f1 = (2 * precision * recall) / (precision + recall)
+            else:
+                f1 = np.nan
+
 
             precision_scores.append(precision)
             recall_scores.append(recall)
             f1_scores.append(f1)
 
-        avg_precision = np.nanmean(precision_scores)
-        avg_recall = np.nanmean(recall_scores)
-        avg_f1 = np.nanmean(f1_scores)
+        valid_mask = [
+            not np.isnan(p) and not np.isnan(r) and not np.isnan(f)
+            for p, r, f in zip(precision_scores, recall_scores, f1_scores)]
+
+        filtered_p = [p for p, m in zip(precision_scores, valid_mask) if m]
+        filtered_r = [r for r, m in zip(recall_scores, valid_mask) if m]
+        filtered_f = [f for f, m in zip(f1_scores, valid_mask) if m]
+
+        avg_precision = np.mean(filtered_p)
+        avg_recall = np.mean(filtered_r)
+        avg_f1 = np.mean(filtered_f)
+
+
 
         return avg_precision, avg_recall, avg_f1
 
